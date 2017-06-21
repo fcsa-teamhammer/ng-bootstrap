@@ -96,9 +96,12 @@ gulp.task('npm', function() {
   var targetPkgJson = {};
   var fieldsToCopy = ['version', 'description', 'keywords', 'author', 'repository', 'license', 'bugs', 'homepage'];
 
-  targetPkgJson['name'] = '@ng-bootstrap/ng-bootstrap';
+  targetPkgJson['name'] = '@fcsa-teamhammer/ng-bootstrap';
+  targetPkgJson['publishConfig'] = {
+    'registry': 'https://fcsamerica.pkgs.visualstudio.com/_packaging/AppDev/npm/registry/'
+  }
 
-  fieldsToCopy.forEach(function(field) { targetPkgJson[field] = pkgJson[field]; });
+                                   fieldsToCopy.forEach(function(field) { targetPkgJson[field] = pkgJson[field]; });
 
   targetPkgJson['main'] = 'bundles/ng-bootstrap.js';
   targetPkgJson['module'] = 'index.js';
