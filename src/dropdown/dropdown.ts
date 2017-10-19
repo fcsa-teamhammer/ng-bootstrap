@@ -7,21 +7,46 @@ import {
   EventEmitter,
   ElementRef,
   ContentChild,
-  OnChanges,
-  SimpleChanges
+  NgZone,
+  Renderer2,
+  OnInit
 } from '@angular/core';
 import {NgbDropdownConfig} from './dropdown-config';
+import {positionElements, PlacementArray, Placement} from '../util/positioning';
 
 /**
  */
 @Directive(
     {selector: '[ngbDropdownMenu]', host: {'[class.dropdown-menu]': 'true', '[class.show]': 'dropdown.isOpen()'}})
 export class NgbDropdownMenu {
+  placement: Placement = 'bottom';
   isOpen = false;
 
-  constructor(@Inject(forwardRef(() => NgbDropdown)) public dropdown, private _elementRef: ElementRef) {}
+  constructor(
+      @Inject(forwardRef(() => NgbDropdown)) public dropdown, private _elementRef: ElementRef,
+      private _renderer: Renderer2) {}
 
   isEventFrom($event) { return this._elementRef.nativeElement.contains($event.target); }
+
+  position(triggerEl, placement) {
+    this.applyPlacement(positionElements(triggerEl, this._elementRef.nativeElement, placement));
+  }
+
+  applyPlacement(_placement: Placement) {
+    // remove the current placement classes
+    this._renderer.removeClass(this._elementRef.nativeElement.parentElement, 'dropup');
+    this._renderer.removeClass(this._elementRef.nativeElement.parentElement, 'dropdown');
+    this.placement = _placement;
+    /**
+     * apply the new placement
+     * in case of top use up-arrow or down-arrow otherwise
+     */
+    if (_placement.search('^top') !== -1) {
+      this._renderer.addClass(this._elementRef.nativeElement.parentElement, 'dropup');
+    } else {
+      this._renderer.addClass(this._elementRef.nativeElement.parentElement, 'dropdown');
+    }
+  }
 }
 
 /**
@@ -37,7 +62,11 @@ export class NgbDropdownMenu {
   }
 })
 export class NgbDropdownToggle {
-  constructor(@Inject(forwardRef(() => NgbDropdown)) public dropdown, private _elementRef: ElementRef) {}
+  anchorEl;
+
+  constructor(@Inject(forwardRef(() => NgbDropdown)) public dropdown, private _elementRef: ElementRef) {
+    this.anchorEl = _elementRef.nativeElement;
+  }
 
   toggleOpen() { this.dropdown.toggle(); }
 
@@ -51,22 +80,17 @@ export class NgbDropdownToggle {
   selector: '[ngbDropdown]',
   exportAs: 'ngbDropdown',
   host: {
-    '[class.dropdown]': '!up',
-    '[class.dropup]': 'up',
     '[class.show]': 'isOpen()',
     '(keyup.esc)': 'closeFromOutsideEsc()',
     '(document:click)': 'closeFromClick($event)'
   }
 })
-export class NgbDropdown {
+export class NgbDropdown implements OnInit {
+  private _zoneSubscription: any;
+
   @ContentChild(NgbDropdownMenu) private _menu: NgbDropdownMenu;
 
   @ContentChild(NgbDropdownToggle) private _toggle: NgbDropdownToggle;
-
-  /**
-   * Indicates that the dropdown should open upwards
-   */
-  @Input() up: boolean;
 
   /**
    * Indicates that dropdown should be closed when selecting one of dropdown items (click) or pressing ESC.
@@ -83,14 +107,29 @@ export class NgbDropdown {
   @Input('open') _open = false;
 
   /**
+   * Placement of a popover accepts:
+   *    "top", "top-left", "top-right", "bottom", "bottom-left", "bottom-right",
+   *    "left", "left-top", "left-bottom", "right", "right-top", "right-bottom"
+   * and array of above values.
+   */
+  @Input() placement: PlacementArray;
+
+  /**
    *  An event fired when the dropdown is opened or closed.
    *  Event's payload equals whether dropdown is open.
    */
   @Output() openChange = new EventEmitter();
 
-  constructor(config: NgbDropdownConfig) {
-    this.up = config.up;
+  constructor(config: NgbDropdownConfig, ngZone: NgZone) {
+    this.placement = config.placement;
     this.autoClose = config.autoClose;
+    this._zoneSubscription = ngZone.onStable.subscribe(() => { this._positionMenu(); });
+  }
+
+  ngOnInit() {
+    if (this._menu) {
+      this._menu.applyPlacement(Array.isArray(this.placement) ? (this.placement[0]) : this.placement as Placement);
+    }
   }
 
   /**
@@ -104,6 +143,7 @@ export class NgbDropdown {
   open(): void {
     if (!this._open) {
       this._open = true;
+      this._positionMenu();
       this.openChange.emit(true);
     }
   }
@@ -147,7 +187,15 @@ export class NgbDropdown {
     }
   }
 
+  ngOnDestroy() { this._zoneSubscription.unsubscribe(); }
+
   private _isEventFromToggle($event) { return this._toggle ? this._toggle.isEventFrom($event) : false; }
 
   private _isEventFromMenu($event) { return this._menu ? this._menu.isEventFrom($event) : false; }
+
+  private _positionMenu() {
+    if (this.isOpen() && this._menu && this._toggle) {
+      this._menu.position(this._toggle.anchorEl, this.placement);
+    }
+  }
 }

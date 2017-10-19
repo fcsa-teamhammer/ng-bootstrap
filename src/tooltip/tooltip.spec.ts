@@ -209,6 +209,50 @@ describe('ngb-tooltip', () => {
         expect(windowEl).toHaveCssClass('bs-tooltip-left');
         expect(windowEl.textContent.trim()).toBe('Great tip!');
       });
+
+      it('should have proper arrow placement', () => {
+        const fixture = createTestComponent(`<div ngbTooltip="Great tip!" placement="right-top"></div>`);
+        const directive = fixture.debugElement.query(By.directive(NgbTooltip));
+
+        directive.triggerEventHandler('mouseenter', {});
+        fixture.detectChanges();
+        const windowEl = getWindow(fixture.nativeElement);
+
+        expect(windowEl).toHaveCssClass('tooltip');
+        expect(windowEl).toHaveCssClass('bs-tooltip-right');
+        expect(windowEl).toHaveCssClass('bs-tooltip-right-top');
+        expect(windowEl.textContent.trim()).toBe('Great tip!');
+      });
+
+      it('should accept placement in array(second value of the array should be applied)', () => {
+        const fixture =
+            createTestComponent(`<div ngbTooltip="Great tip!" [placement]="['left-top','top-right']"></div>`);
+        const directive = fixture.debugElement.query(By.directive(NgbTooltip));
+
+        directive.triggerEventHandler('mouseenter', {});
+        fixture.detectChanges();
+        const windowEl = getWindow(fixture.nativeElement);
+
+        expect(windowEl).toHaveCssClass('tooltip');
+        expect(windowEl).toHaveCssClass('bs-tooltip-top');
+        expect(windowEl).toHaveCssClass('bs-tooltip-top-right');
+        expect(windowEl.textContent.trim()).toBe('Great tip!');
+      });
+
+      it('should apply auto placement', () => {
+        const fixture = createTestComponent(`<div ngbTooltip="Great tip!" placement="auto"></div>`);
+        const directive = fixture.debugElement.query(By.directive(NgbTooltip));
+
+        directive.triggerEventHandler('mouseenter', {});
+        fixture.detectChanges();
+        const windowEl = getWindow(fixture.nativeElement);
+
+        expect(windowEl).toHaveCssClass('tooltip');
+        // actual placement with auto is not known in advance, so use regex to check it
+        expect(windowEl.getAttribute('class')).toMatch('bs-tooltip-\.');
+        expect(windowEl.textContent.trim()).toBe('Great tip!');
+      });
+
     });
 
     describe('triggers', () => {
